@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: warehouse-inventory-reservation
+  datasource:
+    url: jdbc:postgresql://localhost:5432/warehouse
+    username: warehouse
+    password: warehouse
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+server:
+  port: 8080

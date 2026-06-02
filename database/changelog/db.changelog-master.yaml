@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: changes/001-create-schema.sql
+  - include:
+      file: changes/002-seed-data.sql
