@@ -21,12 +21,12 @@ Warehouse-Inventory-Reservation/
 │   │   ├── dto/                 # HTTP request/response types + { data, error } envelope
 │   │   ├── mapper/              # RequestMapper (inbound), ResponseMapper (outbound)
 │   │   └── exception/           # GlobalExceptionHandler
-│   ├── service/                 # Application orchestration (unit-tested)
+│   ├── service/                 # Service interfaces + *Impl (unit-tested)
 │   ├── domain/
 │   │   ├── command/             # CreateReservationCommand (no API dependency)
 │   │   ├── model/               # JPA entities + stock/reservation logic
 │   │   └── state/               # Reservation lifecycle (State pattern)
-│   ├── factory/                 # Reservation creation (Factory pattern)
+│   ├── factory/                 # ReservationFactory interface + impl (Factory pattern)
 │   ├── repository/              # Spring Data JPA + lock-aware queries
 │   └── exception/               # Domain/business exceptions
 └── docker-compose.yml
@@ -80,7 +80,8 @@ Reservation entity creation is centralized; the factory builds domain objects fr
 
 | Class | Location |
 |---|---|
-| `ReservationFactory` | `factory/ReservationFactory.java` |
+| `ReservationFactory` | `factory/ReservationFactory.java` (interface) |
+| `ReservationFactoryImpl` | `factory/ReservationFactoryImpl.java` |
 | Input | `domain/command/CreateReservationCommand.java` |
 
 ## 4. SOLID Principles
@@ -90,8 +91,8 @@ Reservation entity creation is centralized; the factory builds domain objects fr
 | **S** — Single Responsibility | `ReservationService` orchestrates workflows; `Inventory` owns stock mutations; state classes own transitions; `RequestMapper`/`ResponseMapper` own DTO mapping |
 | **O** — Open/Closed | New reservation states can be added by implementing `ReservationState` without changing existing state classes |
 | **L** — Liskov Substitution | All `ReservationState` implementations are interchangeable through the interface |
-| **I** — Interface Segregation | Small focused interfaces: `ReservationState`, `InventoryRepository`, `ReservationRepository` |
-| **D** — Dependency Inversion | Services depend on repository interfaces and `ReservationFactory`, not concrete persistence; API DTOs are converted to domain commands at the boundary (`RequestMapper`) so inner layers never depend on HTTP types |
+| **I** — Interface Segregation | Small focused interfaces: `ReservationState`, repositories, `ReservationService` / `InventoryService`, `ReservationFactory`, `RequestMapper` / `ResponseMapper` |
+| **D** — Dependency Inversion | Controllers and services depend on interfaces (`*Service`, `ReservationFactory`, repositories); Spring wires `*Impl` classes. API DTOs are converted to domain commands at the boundary (`RequestMapper`) so inner layers never depend on HTTP types |
 
 ## 5. Database Design
 
@@ -228,7 +229,7 @@ Seed data includes SKU `A100` (100 units) and `B200` (50 units).
 |-------|--------|----------------|
 | Service | `ReservationServiceTest` (8) | Insufficient stock, duplicate order, multi-SKU rejection, confirm/cancel |
 | State | `ReservationStateTest` (3) | Valid and invalid state transitions |
-| Concurrency | `ReservationServiceConcurrencyTest` (2) | Pessimistic lock acquisition order (mocked repos, no Spring context) |
+| Concurrency | `ReservationServiceConcurrencyTest` (3) | SKU lock order + no stock mutation before lock; cancel uses `findWithItemsByIdForUpdate` before release |
 | Error handling | `GlobalExceptionHandlerTest` (2) | `DataIntegrityViolationException` → `409 DUPLICATE_ORDER` |
 
 **Integration test** (requires Docker):

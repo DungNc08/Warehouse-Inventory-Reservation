@@ -6,35 +6,12 @@ import com.warehouse.api.dto.ReservationResponse;
 import com.warehouse.domain.model.Inventory;
 import com.warehouse.domain.model.Reservation;
 import com.warehouse.domain.model.ReservationItem;
-import java.util.List;
-import org.springframework.stereotype.Component;
 
-@Component
-public class ResponseMapper {
+public interface ResponseMapper {
 
-    public ReservationResponse toReservationResponse(Reservation reservation) {
-        List<ReservationItemResponse> items = reservation.getItems().stream()
-                .map(this::toReservationItemResponse)
-                .toList();
-        return new ReservationResponse(
-                reservation.getId(),
-                reservation.getOrderId(),
-                reservation.getStatus(),
-                reservation.getCreatedAt(),
-                items
-        );
-    }
+    ReservationResponse toReservationResponse(Reservation reservation);
 
-    public ReservationItemResponse toReservationItemResponse(ReservationItem item) {
-        return new ReservationItemResponse(item.getSku(), item.getQuantity());
-    }
+    ReservationItemResponse toReservationItemResponse(ReservationItem item);
 
-    public InventoryResponse toInventoryResponse(Inventory inventory) {
-        return new InventoryResponse(
-                inventory.getSku(),
-                inventory.getTotalStock(),
-                inventory.getAvailableStock(),
-                inventory.getReservedStock()
-        );
-    }
+    InventoryResponse toInventoryResponse(Inventory inventory);
 }

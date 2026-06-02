@@ -43,7 +43,7 @@ class ReservationServiceTest {
     private ReservationFactory reservationFactory;
 
     @InjectMocks
-    private ReservationService reservationService;
+    private ReservationServiceImpl reservationService;
 
     @Test
     void createReservation_rejectsWhenStockIsInsufficient() {

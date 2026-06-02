@@ -1,6 +1,7 @@
 package com.warehouse.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -15,6 +16,7 @@ import com.warehouse.factory.ReservationFactory;
 import com.warehouse.repository.InventoryRepository;
 import com.warehouse.repository.ReservationRepository;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,7 +41,7 @@ class ReservationServiceConcurrencyTest {
     private ReservationFactory reservationFactory;
 
     @InjectMocks
-    private ReservationService reservationService;
+    private ReservationServiceImpl reservationService;
 
     @Test
     void createReservation_acquiresPessimisticLocksInSortedSkuOrder() {
@@ -89,5 +91,24 @@ class ReservationServiceConcurrencyTest {
                 .isInstanceOf(com.warehouse.exception.ResourceNotFoundException.class);
 
         verify(reservationFactory, never()).create(command);
+    }
+
+    @Test
+    void cancelReservation_acquiresPessimisticLockOnReservationBeforeReleasingStock() {
+        UUID reservationId = UUID.randomUUID();
+        Reservation reservation = new Reservation(reservationId, "ORD-CANCEL-LOCK");
+        reservation.addItem(new ReservationItem("A100", 10));
+        Inventory inventory = mock(Inventory.class);
+        when(inventory.getSku()).thenReturn("A100");
+
+        when(reservationRepository.findWithItemsByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
+        when(inventoryRepository.findAllBySkuInForUpdate(List.of("A100"))).thenReturn(List.of(inventory));
+
+        reservationService.cancelReservation(reservationId);
+
+        verify(reservationRepository).findWithItemsByIdForUpdate(reservationId);
+        verify(reservationRepository, never()).findWithItemsById(any());
+        verify(inventoryRepository).findAllBySkuInForUpdate(List.of("A100"));
+        verify(inventory).release(10);
     }
 }
