@@ -227,18 +227,20 @@ Seed data includes SKU `A100` (100 units) and `B200` (50 units).
 
 | Suite | Class | What it covers |
 |-------|--------|----------------|
+| Domain | `InventoryTest` (5) | `reserve()` / `release()` happy path; invariant guards when exceeding available or reserved |
 | Service | `ReservationServiceTest` (8) | Insufficient stock, duplicate order, multi-SKU rejection, confirm/cancel |
 | State | `ReservationStateTest` (3) | Valid and invalid state transitions |
 | Concurrency | `ReservationServiceConcurrencyTest` (3) | SKU lock order + no stock mutation before lock; cancel uses `findWithItemsByIdForUpdate` before release |
 | Error handling | `GlobalExceptionHandlerTest` (2) | `DataIntegrityViolationException` → `409 DUPLICATE_ORDER` |
 
-**Integration test** (requires Docker):
+**Integration tests** (requires Docker; shared `WarehouseIntegrationTestBase` resets DB between tests):
 
 | Suite | Class | What it covers |
 |-------|--------|----------------|
-| Integration | `ConcurrentReservationIT` (1) | Testcontainers + real PostgreSQL; two concurrent `POST /reservations` for SKU `A100` (60+60 vs 100 stock) → one `201`, one `409 INSUFFICIENT_STOCK`; inventory ends at available=40, reserved=60 |
+| Workflow | `ReservationWorkflowIT` (6) | `GET` inventory/reservation, create → confirm/cancel, invalid confirm-then-cancel, 404 |
+| Concurrency | `ConcurrentReservationIT` (5) | Oversell race, 10-thread stress, duplicate `orderId` race, double-cancel, double-confirm |
 
-`ConcurrentReservationIT` is **skipped** if Docker is unavailable (`@Testcontainers(disabledWithoutDocker = true)`). Unit tests always run.
+Integration tests are **skipped** if Docker is unavailable (`@Testcontainers(disabledWithoutDocker = true)`). Unit tests always run.
 
 **Run the integration test explicitly** (Docker Desktop on Linux; avoids `@` in socket path):
 
@@ -258,12 +260,12 @@ The script links `~/.docker/desktop/docker-cli.sock` → `/tmp/tc-docker.sock` (
 | All-or-nothing multi-SKU reserve | Safer for orders, but one unavailable SKU rejects the entire request |
 | Duplicate-order check + DB unique constraint | Application-level `existsByOrderId` catches most cases early; DB constraint is the safety net under race (mapped to `409 DUPLICATE_ORDER` via `GlobalExceptionHandler`) |
 | In-process concurrency test | Validates DB locking end-to-end, but not full multi-instance deployment behavior |
+| Domain `IllegalStateException` in `Inventory` | Last-resort guard if service checks are bypassed; service maps business failures to `InsufficientStockException` before calling `reserve()` |
 
 **With more time:**
 - Add idempotency keys for reserve requests
 - Add reservation expiry / automatic release job
 - Add observability (metrics for lock wait time, rejected reservations)
-- Add integration tests for confirm/cancel/get endpoints
 
 ## 9. Scale Considerations
 

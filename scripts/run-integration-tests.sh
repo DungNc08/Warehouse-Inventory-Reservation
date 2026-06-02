@@ -26,5 +26,5 @@ if [[ ! -S /var/run/docker.sock ]]; then
   echo "Optional: sudo ln -sf \"$SOCKET\" /var/run/docker.sock"
 fi
 
-echo "Running integration test..."
-./mvnw test -Dtest=ConcurrentReservationIT
+echo "Running integration tests..."
+./mvnw test -Dtest='*IT'
